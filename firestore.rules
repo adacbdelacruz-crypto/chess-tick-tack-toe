@@ -1,0 +1,221 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(playerId) {
+      return isVerified() && request.auth.uid == playerId;
+    }
+
+    function isValidPlayerProfile(data) {
+      return data.keys().hasAll([
+        'uid',
+        'displayName',
+        'elo',
+        'wins',
+        'losses',
+        'draws',
+        'soundEnabled',
+        'tutorialCompleted',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'uid',
+        'displayName',
+        'elo',
+        'wins',
+        'losses',
+        'draws',
+        'soundEnabled',
+        'tutorialCompleted',
+        'createdAt',
+        'updatedAt'
+      ])
+      && data.uid is string
+      && data.uid.size() >= 1
+      && data.uid.size() <= 128
+      && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+      && data.uid == request.auth.uid
+      && data.displayName is string
+      && data.displayName.size() >= 2
+      && data.displayName.size() <= 32
+      && data.elo is int
+      && data.elo >= 100
+      && data.elo <= 5000
+      && data.wins is int
+      && data.wins >= 0
+      && data.wins <= 1000000
+      && data.losses is int
+      && data.losses >= 0
+      && data.losses <= 1000000
+      && data.draws is int
+      && data.draws >= 0
+      && data.draws <= 1000000
+      && data.soundEnabled is bool
+      && data.tutorialCompleted is bool
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidPrivateInfo(data) {
+      return data.keys().hasAll(['uid', 'email', 'updatedAt'])
+      && data.keys().hasOnly(['uid', 'email', 'updatedAt'])
+      && data.uid is string
+      && data.uid.size() >= 1
+      && data.uid.size() <= 128
+      && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+      && data.uid == request.auth.uid
+      && data.email is string
+      && data.email.size() >= 3
+      && data.email.size() <= 254
+      && data.updatedAt is timestamp;
+    }
+
+    function isValidSavedMatch(data) {
+      return data.keys().hasAll([
+        'uid',
+        'opponentName',
+        'mode',
+        'difficulty',
+        'playerColor',
+        'result',
+        'moveCount',
+        'eloDelta',
+        'createdAt'
+      ])
+      && data.keys().hasOnly([
+        'uid',
+        'opponentName',
+        'mode',
+        'difficulty',
+        'playerColor',
+        'result',
+        'moveCount',
+        'eloDelta',
+        'createdAt'
+      ])
+      && data.uid is string
+      && data.uid.size() >= 1
+      && data.uid.size() <= 128
+      && data.uid.matches('^[a-zA-Z0-9_\\-]+$')
+      && data.uid == request.auth.uid
+      && data.opponentName is string
+      && data.opponentName.size() >= 1
+      && data.opponentName.size() <= 64
+      && data.mode is string
+      && data.mode in ['ai', 'multiplayer', 'local']
+      && data.difficulty is string
+      && data.difficulty in ['easy', 'intermediate', 'hard', 'legendary', 'none']
+      && data.playerColor is string
+      && data.playerColor in ['white', 'black']
+      && data.result is string
+      && data.result in ['win', 'loss', 'draw']
+      && data.moveCount is int
+      && data.moveCount >= 1
+      && data.moveCount <= 500
+      && data.eloDelta is int
+      && data.eloDelta >= -200
+      && data.eloDelta <= 200
+      && data.createdAt is timestamp;
+    }
+
+    match /players/{playerId} {
+      allow get: if isValidId(playerId) && isOwner(playerId);
+      allow list: if isVerified() && resource.data.uid == request.auth.uid;
+
+      allow create: if isValidId(playerId)
+        && isOwner(playerId)
+        && isValidPlayerProfile(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(playerId)
+        && isOwner(playerId)
+        && isValidPlayerProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['soundEnabled', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['tutorialCompleted', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['elo', 'wins', 'losses', 'draws', 'updatedAt'])
+        );
+
+      allow delete: if false;
+
+      match /private/{docId} {
+        allow get: if isValidId(playerId)
+          && isValidId(docId)
+          && docId == 'info'
+          && isOwner(playerId)
+          && exists(/databases/$(database)/documents/players/$(playerId));
+        allow list: if false;
+
+        allow create: if isValidId(playerId)
+          && isValidId(docId)
+          && docId == 'info'
+          && isOwner(playerId)
+          && isValidPrivateInfo(incoming())
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/players/$(playerId));
+
+        allow update: if isValidId(playerId)
+          && isValidId(docId)
+          && docId == 'info'
+          && isOwner(playerId)
+          && isValidPrivateInfo(incoming())
+          && incoming().uid == existing().uid
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'updatedAt'])
+          && exists(/databases/$(database)/documents/players/$(playerId));
+
+        allow delete: if false;
+      }
+
+      match /savedMatches/{matchId} {
+        allow get: if isValidId(playerId)
+          && isValidId(matchId)
+          && isOwner(playerId)
+          && exists(/databases/$(database)/documents/players/$(playerId));
+        allow list: if isVerified()
+          && request.auth.uid == playerId
+          && resource.data.uid == request.auth.uid;
+
+        allow create: if isValidId(playerId)
+          && isValidId(matchId)
+          && isOwner(playerId)
+          && isValidSavedMatch(incoming())
+          && incoming().createdAt == request.time
+          && exists(/databases/$(database)/documents/players/$(playerId));
+
+        allow update: if false;
+        allow delete: if false;
+      }
+    }
+  }
+}

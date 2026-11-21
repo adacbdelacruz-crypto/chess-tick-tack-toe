@@ -1,0 +1,176 @@
+{
+  "entities": {
+    "PlayerProfile": {
+      "title": "PlayerProfile",
+      "description": "Publicly scoped player statistics and game preferences stored under the player's own document.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Player chosen handle",
+          "minLength": 2,
+          "maxLength": 32
+        },
+        "elo": {
+          "type": "integer",
+          "description": "Current ELO rating"
+        },
+        "wins": {
+          "type": "integer",
+          "description": "Total wins"
+        },
+        "losses": {
+          "type": "integer",
+          "description": "Total losses"
+        },
+        "draws": {
+          "type": "integer",
+          "description": "Total draws"
+        },
+        "soundEnabled": {
+          "type": "boolean",
+          "description": "Audio synthesis preference"
+        },
+        "tutorialCompleted": {
+          "type": "boolean",
+          "description": "Whether the interactive tutorial has been completed"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "elo",
+        "wins",
+        "losses",
+        "draws",
+        "soundEnabled",
+        "tutorialCompleted",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PlayerPrivateInfo": {
+      "title": "PlayerPrivateInfo",
+      "description": "Isolated PII record for a player.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "description": "Verified account email address",
+          "maxLength": 254
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["uid", "email", "updatedAt"]
+    },
+    "SavedMatchSummary": {
+      "title": "SavedMatchSummary",
+      "description": "Personal match history record mirrored for offline/real-time client sync.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Owner Firebase Auth UID",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "opponentName": {
+          "type": "string",
+          "description": "Opponent display name or AI tier",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["ai", "multiplayer", "local"],
+          "description": "Game mode"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "intermediate", "hard", "legendary", "none"],
+          "description": "AI difficulty tier if applicable"
+        },
+        "playerColor": {
+          "type": "string",
+          "enum": ["white", "black"],
+          "description": "Side played by owner"
+        },
+        "result": {
+          "type": "string",
+          "enum": ["win", "loss", "draw"],
+          "description": "Outcome from owner perspective"
+        },
+        "moveCount": {
+          "type": "integer",
+          "description": "Total plies played"
+        },
+        "eloDelta": {
+          "type": "integer",
+          "description": "ELO rating change"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Completion timestamp"
+        }
+      },
+      "required": [
+        "uid",
+        "opponentName",
+        "mode",
+        "difficulty",
+        "playerColor",
+        "result",
+        "moveCount",
+        "eloDelta",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/players/{playerId}": {
+      "schema": {
+        "$ref": "#/entities/PlayerProfile"
+      },
+      "description": "Owner-scoped player profile and preferences"
+    },
+    "/players/{playerId}/private/{docId}": {
+      "schema": {
+        "$ref": "#/entities/PlayerPrivateInfo"
+      },
+      "description": "Owner-only isolated PII subcollection"
+    },
+    "/players/{playerId}/savedMatches/{matchId}": {
+      "schema": {
+        "$ref": "#/entities/SavedMatchSummary"
+      },
+      "description": "Owner-only personal match history subcollection"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Checkline",
+  "description": "A monochrome tactical board game uniting Chess movement and captures with 4-in-a-row Tic-Tac-Toe strategy, multi-tier AI opponents, real-time multiplayer, match history, and global leaderboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
